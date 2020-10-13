@@ -2,23 +2,23 @@ cmake_minimum_required(VERSION 2.8.3)
 project(vins)
 
 set(CMAKE_BUILD_TYPE "Release")
-set(CMAKE_CXX_FLAGS "-std=c++11")
-#-DEIGEN_USE_MKL_ALL")
+
+# C++14 is required by ceres.
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
 
-find_package(mynteye 2.3.3 QUIET)
-find_package(mynteyed 1.7.2 QUIET)
+find_package(mynteye  2.3.3)
+find_package(mynteyed 1.7.2)
 
+# Must connect with a hardware device.
 if(mynteye_FOUND)
-   message(STATUS "MYNT-EYE-S-SDK found.")
+    message(STATUS "Found MYNT-EYE-S-SDK.")
+elseif(mynteyed_FOUND)
+    message(STATUS "Found MYNT-EYE-D-SDK.")
 else()
-   message(STATUS "MYNT-EYE-S-SDK not found.")
-endif()
-
-if(mynteyed_FOUND)
-   message(STATUS "MYNT-EYE-D-SDK found.")
-else()
-   message(STATUS "MYNT-EYE-D-SDK not found.")
+    message(FATAL_ERROR "NO-DEVICE FOUND! Must setup the camera first.")
 endif()
 
 find_package(catkin REQUIRED COMPONENTS

@@ -1,0 +1,43 @@
+{
+    "name": "vins-demo",
+    "runArgs": [
+        // C++ debugging required.
+        "--cap-add=SYS_PTRACE",
+        "--security-opt",
+        "seccomp=unconfined",
+        // For display and network.
+        // !! The following line should not be changed
+        // !! due to vscode bug, see this thread:
+        // !! https://github.com/microsoft/vscode-remote-release/issues/550
+        "--net",
+        "host",
+        "-e",
+        "DISPLAY=${env:DISPLAY}",
+        "-v",
+        "/tmp/.X11-unix:/tmp/.X11-unix",
+        // For usb devices.
+        "--privileged",
+        "-v",
+        "/dev/bus/usb/:/dev/bus/usb"
+    ],
+    // Add the IDs of extensions you want installed when the container is created.
+    "extensions": [
+        "ms-vscode.cpptools",
+        "ms-iot.vscode-ros"
+    ],
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/catkin_ws/src,type=bind,consistency=cached",
+    "workspaceFolder": "/workspace/catkin_ws",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "args": {}
+    },
+    "settings": {
+        "terminal.integrated.shell.linux": "/bin/bash"
+    }
+    // Use 'forwardPorts' to make a list of ports inside the container available locally.
+    // "forwardPorts": [],
+    // Use 'postCreateCommand' to run commands after the container is created.
+    // "postCreateCommand": "gcc -v",
+    // Uncomment to connect as a non-root user. See https://aka.ms/vscode-remote/containers/non-root.
+    // "remoteUser": "vscode"
+}

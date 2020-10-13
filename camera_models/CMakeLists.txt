@@ -3,7 +3,11 @@ set(OpenCV_DIR /usr/local/share/OpenCV)
 project(camera_models)
 
 set(CMAKE_BUILD_TYPE "Release")
-set(CMAKE_CXX_FLAGS "-std=c++11")
+
+# C++14 is required by ceres.
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fPIC")
 
 find_package(catkin REQUIRED COMPONENTS
