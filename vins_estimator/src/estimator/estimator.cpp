@@ -97,7 +97,7 @@ void Estimator::inputIMU(double t, const Vector3d &linearAcceleration, const Vec
 
     fastPredictIMU(t, linearAcceleration, angularVelocity);
     if (solver_flag == NON_LINEAR)
-        pubLatestOdometry(latest_P, latest_Q, latest_V, t);
+        pubLatestOdometry(*this, latest_P, latest_Q, latest_V, t);
 }
 
 void Estimator::inputFeature(double t, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &featureFrame)
@@ -207,18 +207,29 @@ void Estimator::processMeasurements()
             processImage(feature.second, feature.first);
             prevTime = curTime;
 
-            printStatistics(*this, 0);
+            // swei: disable for less resources.
+            // printStatistics(*this, 0);
+            if (solver_flag != INITIAL)
+                ROS_INFO("Position %.4f %.4f %.4f", Ps[WINDOW_SIZE].x(), Ps[WINDOW_SIZE].y(), Ps[WINDOW_SIZE].z());
 
             std_msgs::Header header;
             header.frame_id = "world";
             header.stamp = ros::Time(feature.first);
 
-            pubOdometry(*this, header);
-            pubKeyPoses(*this, header);
-            pubCameraPose(*this, header);
+            // swei: can be disabled.
+            // pubOdometry(*this, header);
+            // swei: Disable due to tiny resource.
+            // pubKeyPoses(*this, header);
+            // swei: We would like to use the imu pose for demo,
+            //       so we must disable this one.
+            // pubCameraPose(*this, header);
+
             pubPointCloud(*this, header);
-            pubKeyframe(*this);
-            pubTF(*this, header);
+
+            // swei: Disable due to tiny resource.
+            // pubKeyframe(*this);
+            // swei: Disable due to no one listens.
+            // pubTF(*this, header);
         }
 
         if (! MULTIPLE_THREAD)
