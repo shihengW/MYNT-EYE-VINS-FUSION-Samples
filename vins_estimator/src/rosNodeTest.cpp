@@ -21,7 +21,12 @@
 #include "estimator/parameters.h"
 #include "utility/visualization.h"
 
-Estimator estimator;
+// swei: for unique_ptr.
+#include <memory>
+
+std::unique_ptr<Estimator> estimator;
+// swei: For safty, give estimator a lock.
+std::mutex m_estimator;
 
 queue<sensor_msgs::ImuConstPtr> imu_buf;
 queue<sensor_msgs::PointCloudConstPtr> feature_buf;
@@ -104,8 +109,11 @@ void sync_process()
                 }
             }
             m_buf.unlock();
-            if(!image0.empty())
-                estimator.inputImage(time, image0, image1);
+            if(!image0.empty()) {
+                m_estimator.lock();
+                estimator->inputImage(time, image0, image1);
+                m_estimator.unlock();
+            }
         }
         else
         {
@@ -121,8 +129,11 @@ void sync_process()
                 img0_buf.pop();
             }
             m_buf.unlock();
-            if(!image.empty())
-                estimator.inputImage(time, image);
+            if(!image.empty()) {
+                m_estimator.lock();
+                estimator->inputImage(time, image);
+                m_estimator.unlock();
+            }
         }
 
         std::chrono::milliseconds dura(2);
@@ -142,11 +153,13 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
     double rz = imu_msg->angular_velocity.z;
     Vector3d acc(dx, dy, dz);
     Vector3d gyr(rx, ry, rz);
-    estimator.inputIMU(t, acc, gyr);
+    m_estimator.lock();
+    estimator->inputIMU(t, acc, gyr);
+    m_estimator.unlock();
     return;
 }
 
-
+#if 0 // swei: Inspecting rosnode, found no one pubs this topic.
 void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
 {
     map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> featureFrame;
@@ -175,23 +188,30 @@ void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
         featureFrame[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
     }
     double t = feature_msg->header.stamp.toSec();
-    estimator.inputFeature(t, featureFrame);
+    estimator->inputFeature(t, featureFrame);
     return;
 }
+#endif
 
 void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
 {
     if (restart_msg->data == true)
     {
         ROS_WARN("restart the estimator!");
+        m_estimator.lock();
         m_buf.lock();
         while(!feature_buf.empty())
             feature_buf.pop();
         while(!imu_buf.empty())
             imu_buf.pop();
+
+        estimator->clearState();
+        estimator->setParameter();
+
+        ROS_WARN("Estimator reset!");
+
         m_buf.unlock();
-        estimator.clearState();
-        estimator.setParameter();
+        m_estimator.unlock();
     }
     return;
 }
@@ -226,8 +246,9 @@ else
    }
     ROS_INFO("load config_file: %s\n", config_file.c_str());
 }
+    estimator = std::make_unique<Estimator>();
     readParameters(config_file);
-    estimator.setParameter();
+    estimator->setParameter();
 
 #ifdef EIGEN_DONT_PARALLELIZE
     ROS_DEBUG("EIGEN_DONT_PARALLELIZE");
@@ -238,9 +259,15 @@ else
     registerPub(n);
 
     ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
-    ros::Subscriber sub_feature = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
+    // swei: Inspecting rosnode, found no one pubs this topic.
+    // ros::Subscriber sub_feature = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
     ros::Subscriber sub_img0 = n.subscribe(IMAGE0_TOPIC, 100, img0_callback);
     ros::Subscriber sub_img1 = n.subscribe(IMAGE1_TOPIC, 100, img1_callback);
+
+    // swei: Let's subscribe a 'reset' topic, so we can restart the estimator.
+    // To trigger, call in bash:
+    //   rostopic pub /reset std_msgs/Bool true
+    ros::Subscriber sub_restart = n.subscribe("/reset", 1, restart_callback);
 
     std::thread sync_thread{sync_process};
     ros::spin();

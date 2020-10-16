@@ -43,7 +43,15 @@ void Estimator::setParameter()
     std::cout << "MULTIPLE_THREAD is " << MULTIPLE_THREAD << '\n';
     if (MULTIPLE_THREAD)
     {
-        processThread   = std::thread(&Estimator::processMeasurements, this);
+        if (processThread.joinable()) {
+            std::cout << "Process before joint." << std::endl;
+            process_measurements_continue = false;
+            processThread.join();
+            process_measurements_continue = true;
+            std::cout << "Process joint." << std::endl;
+        }
+        
+        processThread = std::thread(&Estimator::processMeasurements, this);
     }
 }
 
@@ -148,7 +156,9 @@ bool Estimator::IMUAvailable(double t)
 
 void Estimator::processMeasurements()
 {
-    while (1)
+    // swei: for single thread, this should always be true.
+    // for multi threads, use it to control the joining.
+    while (process_measurements_continue)
     {
         //printf("process measurments\n");
         pair<double, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1> > > > > feature;

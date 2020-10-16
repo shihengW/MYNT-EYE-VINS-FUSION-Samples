@@ -22,6 +22,8 @@ if [ ! $1 ]
 then
     echo -e "\e[1;32m# Tell me where to find 'MYNT-EYE-D-SDK':\e[0m"
     read SDK_PATH
+else
+    SDK_PATH=$1
 fi
 
 echo -e "\e[1;32m

@@ -170,4 +170,7 @@ class Estimator
     Eigen::Quaterniond latest_Q;
 
     bool initFirstPoseFlag;
+
+    // swei: for rebooting.
+    bool process_measurements_continue = true;
 };
