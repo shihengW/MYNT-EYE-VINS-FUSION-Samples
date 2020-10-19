@@ -68,7 +68,8 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
     
     if(MULTIPLE_THREAD)  
     {     
-        if(inputImageCnt % 2 == 0)
+        // swei: Optimize at frame rate for demo.
+        // if(inputImageCnt % 2 == 0)
         {
             mBuf.lock();
             featureBuf.push(make_pair(t, featureFrame));
@@ -218,11 +219,12 @@ void Estimator::processMeasurements()
 
             // swei: can be disabled.
             // pubOdometry(*this, header);
+
             // swei: Disable due to tiny resource.
             // pubKeyPoses(*this, header);
             // swei: We would like to use the imu pose for demo,
             //       so we must disable this one.
-            // pubCameraPose(*this, header);
+            pubCameraPose(*this, header);
 
             pubPointCloud(*this, header);
 

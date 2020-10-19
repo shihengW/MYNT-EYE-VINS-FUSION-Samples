@@ -90,12 +90,12 @@ void sync_process()
                 if(time0 < time1)
                 {
                     img0_buf.pop();
-                    printf("throw img0\n");
+                    printf("Throw img0 (%lf -- %lf).\n", time0, time1);
                 }
                 else if(time0 > time1)
                 {
                     img1_buf.pop();
-                    printf("throw img1\n");
+                    printf("Throw img1 (%lf -- %lf).\n", time0, time1);
                 }
                 else
                 {
@@ -261,8 +261,8 @@ else
     ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
     // swei: Inspecting rosnode, found no one pubs this topic.
     // ros::Subscriber sub_feature = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
-    ros::Subscriber sub_img0 = n.subscribe(IMAGE0_TOPIC, 100, img0_callback);
-    ros::Subscriber sub_img1 = n.subscribe(IMAGE1_TOPIC, 100, img1_callback);
+    ros::Subscriber sub_img0 = n.subscribe(IMAGE0_TOPIC, 10, img0_callback);
+    ros::Subscriber sub_img1 = n.subscribe(IMAGE1_TOPIC, 10, img1_callback);
 
     // swei: Let's subscribe a 'reset' topic, so we can restart the estimator.
     // To trigger, call in bash:

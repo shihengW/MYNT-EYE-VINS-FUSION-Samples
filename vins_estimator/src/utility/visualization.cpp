@@ -15,7 +15,7 @@ ros::Publisher pub_odometry, pub_latest_odometry;
 ros::Publisher pub_path;
 ros::Publisher pub_point_cloud, pub_margin_cloud;
 ros::Publisher pub_key_poses;
-ros::Publisher pub_camera_pose;
+ros::Publisher pub_camera_pose, pub_latest_camera_pose;
 ros::Publisher pub_camera_pose_visual;
 nav_msgs::Path path;
 
@@ -38,6 +38,7 @@ void registerPub(ros::NodeHandle &n)
     pub_margin_cloud = n.advertise<sensor_msgs::PointCloud>("margin_cloud", 1000);
     pub_key_poses = n.advertise<visualization_msgs::Marker>("key_poses", 1000);
     pub_camera_pose = n.advertise<nav_msgs::Odometry>("camera_pose", 1000);
+    pub_latest_camera_pose = n.advertise<nav_msgs::Odometry>("latest_camera_pose", 1000);
     pub_camera_pose_visual = n.advertise<visualization_msgs::MarkerArray>("camera_pose_visual", 1000);
     pub_keyframe_pose = n.advertise<nav_msgs::Odometry>("keyframe_pose", 1000);
     pub_keyframe_point = n.advertise<sensor_msgs::PointCloud>("keyframe_point", 1000);
@@ -50,8 +51,9 @@ void registerPub(ros::NodeHandle &n)
 
 void pubLatestOdometry(const Estimator &estimator, const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, const Eigen::Vector3d &V, double t)
 {
+    auto stamp = ros::Time(t);
     nav_msgs::Odometry odometry;
-    odometry.header.stamp = ros::Time(t);
+    odometry.header.stamp = stamp;
     odometry.header.frame_id = "world";
     odometry.pose.pose.position.x = P.x();
     odometry.pose.pose.position.y = P.y();
@@ -71,6 +73,18 @@ void pubLatestOdometry(const Estimator &estimator, const Eigen::Vector3d &P, con
     cameraposevisual.reset();
     cameraposevisual.add_pose(P_cam, Q_cam);
     cameraposevisual.publish_by(pub_camera_pose_visual, odometry.header);
+    
+    nav_msgs::Odometry cam_pose;
+    cam_pose.header.stamp = stamp;
+    cam_pose.header.frame_id = "world";
+    cam_pose.pose.pose.position.x = P_cam.x();
+    cam_pose.pose.pose.position.y = P_cam.y();
+    cam_pose.pose.pose.position.z = P_cam.z();
+    cam_pose.pose.pose.orientation.x = Q_cam.x();
+    cam_pose.pose.pose.orientation.y = Q_cam.y();
+    cam_pose.pose.pose.orientation.z = Q_cam.z();
+    cam_pose.pose.pose.orientation.w = Q_cam.w();
+    pub_latest_camera_pose.publish(cam_pose);
 #endif
 }
 
@@ -232,6 +246,7 @@ void pubCameraPose(const Estimator &estimator, const std_msgs::Header &header)
 
     pub_camera_pose.publish(odometry);
 
+#if 0 // swei: Camera visual with latest camera pose.
     cameraposevisual.reset();
     cameraposevisual.add_pose(P, R);
     
@@ -243,6 +258,7 @@ void pubCameraPose(const Estimator &estimator, const std_msgs::Header &header)
     }
 
     cameraposevisual.publish_by(pub_camera_pose_visual, odometry.header);
+#endif
 }
 
 

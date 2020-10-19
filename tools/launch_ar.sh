@@ -14,19 +14,16 @@ SCRIPT_PATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
 echo -e "\e[1;32m
 ##################################################
-# Launch the camera, please make sure the sdk is #
-# installed and vins is built.                   #
+# Launch ar demo (first make sure the device is  #
+# launched and vins is built).                   #
 ##################################################\e[0m"
 
-if [ ! $1 ]
+# Check the camera topic
+if [ ! $(rostopic info /mynteye/right/camera_info) ]
 then
-    echo -e "\e[1;31m# Tell me where to find 'MYNT-EYE-D-SDK':\e[0m"
-    read SDK_PATH
-else
-    SDK_PATH=$1
+    echo -e "\e[1;31m# MUST launch camera first.\e[0m"
+    exit 1
 fi
 
-echo -e "\e[1;32m
-# Launching camera...\e[0m"
-source "$SDK_PATH/MYNT-EYE-D-SDK/wrappers/ros/devel/setup.bash"
-roslaunch mynteye_wrapper_d vins_fusion.launch stream_mode:=1
+source "$SCRIPT_PATH/../../devel/setup.bash"
+roslaunch ar_demo mynteye_d.launch
