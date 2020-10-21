@@ -18,6 +18,7 @@ echo -e "\e[1;32m
 # installed and vins is built.                   #
 ##################################################\e[0m"
 
+# Input sdk path.
 if [ ! $1 ]
 then
     echo -e "\e[1;31m# Tell me where to find 'MYNT-EYE-D-SDK':\e[0m"
@@ -26,7 +27,23 @@ else
     SDK_PATH=$1
 fi
 
+# Try to find sdk.
+if [ -f $SDK_PATH/MYNT-EYE-D-SDK/wrappers/ros/devel/setup.bash ]
+then
+    echo -e "\e[1;32m# Found camera sdk at $SDK_PATH/MYNT-EYE-D-SDK/.\e[0m"
+    source "$SDK_PATH/MYNT-EYE-D-SDK/wrappers/ros/devel/setup.bash"
+elif [ -f $SDK_PATH/wrappers/ros/devel/setup.bash ]
+then
+    echo -e "\e[1;32m# Found camera sdk at $SDK_PATH/.\e[0m"
+    source "$SDK_PATH/wrappers/ros/devel/setup.bash"
+else
+    echo -e "\e[1;31m
+# Cannot find camera sdk at $SDK_PATH/MYNT-EYE-D-SDK/
+# or $SDK_PATH,
+# FAIL TO LAUNCH!/.\e[0m"
+    exit 1
+fi
+
 echo -e "\e[1;32m
 # Launching camera...\e[0m"
-source "$SDK_PATH/MYNT-EYE-D-SDK/wrappers/ros/devel/setup.bash"
-roslaunch mynteye_wrapper_d vins_fusion.launch stream_mode:=1
+roslaunch mynteye_wrapper_d vins_fusion.launch

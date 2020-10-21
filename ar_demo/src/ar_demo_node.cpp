@@ -383,7 +383,7 @@ void callback(const ImageConstPtr &img_msg,
         cv::cvtColor(AR_image, AR_image, cv::COLOR_GRAY2RGB);
     } else {
         cv_bridge::CvImageConstPtr ptr;
-        ptr = cv_bridge::toCvCopy(img_msg, "rgb8");
+        ptr = cv_bridge::toCvCopy(img_msg, "bgr8");
         AR_image = ptr->image.clone();
     }
 

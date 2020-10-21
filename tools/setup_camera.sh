@@ -34,13 +34,14 @@ read -n 1 # wait for keypress.
 
 if [ ! -d MYNT-EYE-D-SDK ]
 then
-  git clone https://github.com/slightech/MYNT-EYE-D-SDK
+  # Have some special changes in this repo and branch.
+  git clone https://github.com/shihengW/MYNT-EYE-D-SDK.git --branch dev
 else
   echo "# Found sdk, no need to clone again."
 fi
 
 cd MYNT-EYE-D-SDK
-git checkout master
+git checkout dev # MUST use the dev branch.
 
 echo -e "\e[1;32m
 # STEP 2: Initialize the build process.\e[1;31m
@@ -60,11 +61,4 @@ source /opt/ros/kinetic/setup.bash && echo y | make all
 make install # Required by fusion.
 
 echo -e "\e[1;32m
-# STEP FINAL: Generate camera parameters.\e[0m"
-cd $CALLER_PATH
-$CALLER_PATH/MYNT-EYE-D-SDK/samples/_output/bin/get_img_params
-$CALLER_PATH/MYNT-EYE-D-SDK/samples/_output/bin/get_imu_params
-
-echo -e "\e[1;32m
-# COMPLETE!
-# See the parameter files here.\e[0m"
+# COMPLETE!\e[0m"
