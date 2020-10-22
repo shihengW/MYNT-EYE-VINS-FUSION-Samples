@@ -81,7 +81,7 @@ void sync_process() {
     }
 
 #define SYNC_PROCESS_LONG_DELAY {                        \
-        std::chrono::milliseconds _long_delay_dura(500);  \
+        std::chrono::milliseconds _long_delay_dura(600);  \
         std::this_thread::sleep_for(_long_delay_dura);   \
     }
 
@@ -129,7 +129,7 @@ void sync_process() {
                 SYNC_PROCESS_LONG_DELAY
 
                 if (img0_buf.empty() || img1_buf.empty()) {
-                    ROS_WARN("Fail to sync left and right camera.");
+                    ROS_WARN("Still fail to sync.");
                 }
             }
         }

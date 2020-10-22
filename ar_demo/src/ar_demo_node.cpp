@@ -35,11 +35,12 @@ using namespace sensor_msgs;
 using namespace message_filters;
 using namespace camodocal;
 
-const int axis_num = 0;
 const int cube_num = 1;
-const double box_length = 0.8;
+const double box_length = 0.1;
 bool pose_init = false;
-int img_cnt = 0;
+int skipped_img_counter = 0;
+// swei: Whether camera view is inside the cube.
+int camera_inside_or_ahead = 0;
 
 ros::Publisher object_pub;
 image_transport::Publisher pub_ARimage;
@@ -163,11 +164,6 @@ void add_object() {
     visualization_msgs::Marker line_list;
     visualization_msgs::Marker cube_list;
 
-    for (int i = 0; i < axis_num; i++) {
-        axis_generate(line_list, Axis[i], i);
-        markerArray_msg.markers.push_back(line_list);
-    }
-
     for (int i = 0; i < cube_num; i++) {
         cube_generate(cube_list, Cube_center[i], i);
     }
@@ -178,60 +174,36 @@ void add_object() {
 }
 
 void project_object(Vector3d camera_p, Quaterniond camera_q) {
-    for (int i = 0; i < axis_num; i++) {
-        output_Axis[i].clear();
-        Vector3d local_point;
-        Vector2d local_uv;
-        local_point = camera_q.inverse() * (Axis[i] - camera_p);
-        m_camera->spaceToPlane(local_point, local_uv);
-
-        if (local_point.z() > 0)
-        //&& 0 <= local_uv.x() && local_uv.x() <= COL - 1 && 0 <= local_uv.y()
-        //&&
-        // local_uv.y() <= ROW -1)
-        {
-            output_Axis[i].push_back(Vector3d(local_uv.x(), local_uv.y(), 1));
-
-            local_point =
-                camera_q.inverse() * (Axis[i] + Vector3d(1, 0, 0) - camera_p);
-            m_camera->spaceToPlane(local_point, local_uv);
-            output_Axis[i].push_back(Vector3d(local_uv.x(), local_uv.y(), 1));
-
-            local_point =
-                camera_q.inverse() * (Axis[i] + Vector3d(0, 1, 0) - camera_p);
-            m_camera->spaceToPlane(local_point, local_uv);
-            output_Axis[i].push_back(Vector3d(local_uv.x(), local_uv.y(), 1));
-
-            local_point =
-                camera_q.inverse() * (Axis[i] + Vector3d(0, 0, 1) - camera_p);
-            m_camera->spaceToPlane(local_point, local_uv);
-            output_Axis[i].push_back(Vector3d(local_uv.x(), local_uv.y(), 1));
-        }
-    }
 
     for (int i = 0; i < cube_num; i++) {
         output_Cube[i].clear();
         output_corner_dis[i].clear();
-        Vector3d local_point;
-        Vector2d local_uv;
-        local_point = camera_q.inverse() * (Cube_center[i] - camera_p);
+        Vector3d cube_center_in_camera = camera_q.inverse() * (Cube_center[i] - camera_p);
 
-        m_camera->spaceToPlane(local_point, local_uv);
+        Vector2d cube_center_projected;
+        m_camera->spaceToPlane(cube_center_in_camera, cube_center_projected);
 
-        if (local_point.z() > box_length / 2) {
-            Cube_center_depth[i] = local_point.z();
+        // swei: Just a rough guess.
+        bool visible = cube_center_in_camera.z() > (1.414213562373095 * box_length / 2 + 0.01);
+        if (visible)
+            camera_inside_or_ahead = 0;
+        else {
+            ROS_INFO("Cube in camera coord %.4f, %.4f, %.4f.",
+                cube_center_in_camera.x(), cube_center_in_camera.y(), cube_center_in_camera.z());
+            camera_inside_or_ahead++;
+        }
+
+        if (visible) {
+            Cube_center_depth[i] = cube_center_in_camera.z();
             for (int j = 0; j < 8; j++) {
-                local_point =
+                Vector3d cube_corner_in_camera =
                     camera_q.inverse() * (Cube_corner[i][j] - camera_p);
-                output_corner_dis[i].push_back(local_point.norm());
-                // ROS_INFO("camera model project!");
-                m_camera->spaceToPlane(local_point, local_uv);
-                local_uv.x() =
-                    std::min(std::max(-5000.0, local_uv.x()), 5000.0);
-                local_uv.y() =
-                    std::min(std::max(-5000.0, local_uv.y()), 5000.0);
-                output_Cube[i].push_back(
-                    Vector3d(local_uv.x(), local_uv.y(), 1));
+                output_corner_dis[i].push_back(cube_corner_in_camera.norm());
+                Vector2d cube_corner_projected;
+                m_camera->spaceToPlane(cube_corner_in_camera, cube_corner_projected);
+                cube_corner_projected.x() = std::min(std::max(-5000.0, cube_corner_projected.x()), 5000.0);
+                cube_corner_projected.y() = std::min(std::max(-5000.0, cube_corner_projected.y()), 5000.0);
+                output_Cube[i].push_back(Vector3d(cube_corner_projected.x(), cube_corner_projected.y(), 1));
             }
         } else {
             Cube_center_depth[i] = -1;
@@ -241,39 +213,25 @@ void project_object(Vector3d camera_p, Quaterniond camera_q) {
 
 void draw_object(cv::Mat &AR_image) {
 
-    // Draw axis.
-    for (int i = 0; i < axis_num; i++) {
-        if (output_Axis[i].empty())
-            continue;
-        cv::Point2d origin(output_Axis[i][0].x(), output_Axis[i][0].y());
-        cv::Point2d axis_x(output_Axis[i][1].x(), output_Axis[i][1].y());
-        cv::Point2d axis_y(output_Axis[i][2].x(), output_Axis[i][2].y());
-        cv::Point2d axis_z(output_Axis[i][3].x(), output_Axis[i][3].y());
-        cv::line(AR_image, origin, axis_x, cv::Scalar(0, 0, 255), 2, 8, 0);
-        cv::line(AR_image, origin, axis_y, cv::Scalar(0, 255, 0), 2, 8, 0);
-        cv::line(AR_image, origin, axis_z, cv::Scalar(255, 0, 0), 2, 8, 0);
-    }
-
     // depth sort  big---->small
-    int index[cube_num];
-    for (int i = 0; i < cube_num; i++) {
-        index[i] = i;
-        // cout << "i " << i << " init depth" << Cube_center_depth[i] << endl;
-    }
+    int drawing_orders[cube_num];
+    for (int i = 0; i < cube_num; i++)
+        drawing_orders[i] = i;
+
     for (int i = 0; i < cube_num; i++)
         for (int j = 0; j < cube_num - i - 1; j++) {
             if (Cube_center_depth[j] < Cube_center_depth[j + 1]) {
                 double tmp = Cube_center_depth[j];
                 Cube_center_depth[j] = Cube_center_depth[j + 1];
                 Cube_center_depth[j + 1] = tmp;
-                int tmp_index = index[j];
-                index[j] = index[j + 1];
-                index[j + 1] = tmp_index;
+                int tmp_index = drawing_orders[j];
+                drawing_orders[j] = drawing_orders[j + 1];
+                drawing_orders[j + 1] = tmp_index;
             }
         }
 #if 0
     for (int k = 0; k < cube_num; k++) {
-        int i = index[k];
+        int i = drawing_orders[k];
         // cout << "draw " << i << "depth " << Cube_center_depth[i] << endl;
         if (output_Cube[i].empty())
             continue;
@@ -341,14 +299,15 @@ void draw_object(cv::Mat &AR_image) {
     }
 
 #else
-    for (int k = 0; k < cube_num; k++) {
-        int i = index[k];
-        if (output_Cube[i].empty())
-            continue;
+    // swei: For simplicity, just draw one rectangle.
+    int i = drawing_orders[0];
 
-        int draw_x[] = { 0, 1, 5, 4, 4, 6, 2, 2, 3, 3, 6, 5};
-        int draw_y[] = { 1, 5, 4, 0, 6, 2, 0, 3, 1, 7, 7, 7};
-
+    if (camera_inside_or_ahead > 0) {
+        ROS_WARN("Cube unvisible.");
+    }
+    else {
+        static const int draw_x[] = { 0, 1, 5, 4, 4, 6, 2, 2, 3, 3, 6, 5};
+        static const int draw_y[] = { 1, 5, 4, 0, 6, 2, 0, 3, 1, 7, 7, 7};
         cv::Point p[8];
         p[0] = cv::Point(output_Cube[i][0].x(), output_Cube[i][0].y());
         p[1] = cv::Point(output_Cube[i][1].x(), output_Cube[i][1].y());
@@ -359,22 +318,20 @@ void draw_object(cv::Mat &AR_image) {
         p[6] = cv::Point(output_Cube[i][6].x(), output_Cube[i][6].y());
         p[7] = cv::Point(output_Cube[i][7].x(), output_Cube[i][7].y());
 
-        for (size_t order = 0; order < sizeof(draw_x)/sizeof(draw_x[0]); ++ order) {
+        for (size_t order = 0; order < sizeof(draw_x)/sizeof(draw_x[0]); ++ order)
             cv::line(AR_image, p[draw_x[order]], p[draw_y[order]], cv::Scalar(0, 255, 0), 2, 8, 0);
-        }
     }
-
 #endif
 }
 
-void callback(const ImageConstPtr &img_msg,
-              const nav_msgs::Odometry::ConstPtr pose_msg) {
+void project_ar_object(const ImageConstPtr &img_msg,
+                       const nav_msgs::Odometry::ConstPtr pose_msg) {
     // Just skip some frames.
-    if (img_cnt < 2) {
-        img_cnt++;
+    if (skipped_img_counter < 2) {
+        skipped_img_counter++;
         return;
     }
-    // ROS_INFO("sync callback!");
+
     Vector3d camera_p(pose_msg->pose.pose.position.x,
                       pose_msg->pose.pose.position.y,
                       pose_msg->pose.pose.position.z);
@@ -382,6 +339,7 @@ void callback(const ImageConstPtr &img_msg,
         pose_msg->pose.pose.orientation.w, pose_msg->pose.pose.orientation.x,
         pose_msg->pose.pose.orientation.y, pose_msg->pose.pose.orientation.z);
 
+#if 0 // swei: Since we disabled point callback, we won't care about looking down.
     // test plane
     Vector3d cam_z(0, 0, -1);
     Vector3d w_cam_z = camera_q * cam_z;
@@ -392,6 +350,7 @@ void callback(const ImageConstPtr &img_msg,
         look_ground = 1;
     } else
         look_ground = 0;
+#endif
 
     project_object(camera_p, camera_q);
     cv::Mat AR_image;
@@ -417,6 +376,16 @@ void callback(const ImageConstPtr &img_msg,
 
     draw_object(AR_image);
 
+    if (camera_inside_or_ahead > 20) {
+        camera_inside_or_ahead = 0;
+        Vector3d new_cube_in_camera = Vector3d(0, 0, 1 + box_length / 2.0);
+        Vector3d new_cube_in_world = camera_q * new_cube_in_camera + camera_p;
+        Cube_center[0] = new_cube_in_world;
+        ROS_INFO("Cube_center change to %.4f, %.4f, %.4f.",
+            new_cube_in_world.x(), new_cube_in_world.y(), new_cube_in_world.z());
+    }
+
+// swei: We should abondon rviz, cause it consumes too much.
 #if 0 // Go wtih rviz.
     sensor_msgs::ImagePtr AR_msg =
         cv_bridge::CvImage(img_msg->header, "bgr8", AR_image).toImageMsg();
@@ -428,6 +397,7 @@ void callback(const ImageConstPtr &img_msg,
 #endif
 }
 
+#if 0 // swei: To make the demo simpler.
 void point_callback(const sensor_msgs::PointCloudConstPtr &point_msg) {
     if (!look_ground)
         return;
@@ -474,13 +444,14 @@ void point_callback(const sensor_msgs::PointCloudConstPtr &point_msg) {
     }
     add_object();
 }
+#endif
 
 void img_callback(const ImageConstPtr &img_msg) {
-    if (pose_init) {
-        img_buf.push(img_msg);
-        add_object();
-    } else
+    if (!pose_init)
         return;
+
+    img_buf.push(img_msg);
+    add_object();
 }
 
 void pose_callback(const nav_msgs::Odometry::ConstPtr &pose_msg) {
@@ -489,18 +460,16 @@ void pose_callback(const nav_msgs::Odometry::ConstPtr &pose_msg) {
         return;
     }
 
-    if (img_buf.empty()) {
-        // ROS_WARN("image coming late");
+    if (img_buf.empty())
         return;
-    }
 
-    while (img_buf.front()->header.stamp < pose_msg->header.stamp &&
-           !img_buf.empty()) {
+    // Syncing.
+    while ((!img_buf.empty()) && img_buf.front()->header.stamp < pose_msg->header.stamp) {
         img_buf.pop();
     }
 
     if (!img_buf.empty()) {
-        callback(img_buf.front(), pose_msg);
+        project_ar_object(img_buf.front(), pose_msg);
         img_buf.pop();
     }
 }
@@ -518,17 +487,7 @@ int main(int argc, char **argv) {
 
     sub_img = n.subscribe("image_raw", 5, img_callback);
 
-    Axis[0] = Vector3d(0, 1.5, -1.2);
-    Axis[1] = Vector3d(-10, 5, 0);
-    Axis[2] = Vector3d(3, 3, 3);
-    Axis[3] = Vector3d(-2, 2, 0);
-    Axis[4] = Vector3d(5, 10, -5);
-    Axis[5] = Vector3d(0, 10, -1);
-
-    Cube_center[0] = Vector3d(0, 1.5, -1.2 + box_length / 2.0);
-    // Cube_center[0] = Vector3d(0, 3, -1.2 + box_length / 2.0);
-    Cube_center[1] = Vector3d(4, -2, -1.2 + box_length / 2.0);
-    Cube_center[2] = Vector3d(0, -2, -1.2 + box_length / 2.0);
+    Cube_center[0] = Vector3d(0, 0, -1 + box_length / 2.0);
 
     ros::Subscriber pose_img = n.subscribe("camera_pose", 100, pose_callback);
 
@@ -539,23 +498,13 @@ int main(int argc, char **argv) {
     // image_transport::ImageTransport it(n);
     // pub_ARimage = it.advertise("AR_image", 1000);
 
-    line_color_r.r = 1.0;
-    line_color_r.a = 1.0;
-    line_color_g.g = 1.0;
-    line_color_g.a = 1.0;
-    line_color_b.b = 1.0;
-    line_color_b.a = 1.0;
-
     string calib_file;
     n.getParam("calib_file", calib_file);
-    ROS_INFO("reading paramerter of camera %s", calib_file.c_str());
-#if 1
+    ROS_WARN("AR demo will fetch camera parameters from %s", calib_file.c_str());
     if (!file_exist(calib_file)) {
         ROS_ERROR("Camera config file missing at %s.", calib_file.c_str());
         return 1;
     }
-#endif
-    ROS_WARN("AR demo will fetch camera parameters from %s", calib_file.c_str());
     m_camera =
         CameraFactory::instance()->generateCameraFromYamlFile(calib_file);
 
