@@ -73,46 +73,64 @@ cv::Mat getImageFromMsg(const sensor_msgs::ImageConstPtr &img_msg)
 }
 
 // extract images with same timestamp from two topics
-void sync_process()
-{
+void sync_process() {
+
+#define SYNC_PROCESS_SHORT_DELAY {                       \
+        std::chrono::milliseconds _short_delay_dura(2);  \
+        std::this_thread::sleep_for(_short_delay_dura);               \
+    }
+
+#define SYNC_PROCESS_LONG_DELAY {                        \
+        std::chrono::milliseconds _long_delay_dura(500);  \
+        std::this_thread::sleep_for(_long_delay_dura);   \
+    }
+
     while(1)
     {
-        if(STEREO)
-        {
+        if(STEREO) {
+
+            if (img0_buf.empty() || img1_buf.empty()) {
+                SYNC_PROCESS_SHORT_DELAY
+                continue;
+            }
+
             cv::Mat image0, image1;
             std_msgs::Header header;
-            double time = 0;
+            double time = 0.0;
+
+            // Force sync stereo.
             m_buf.lock();
-            if (!img0_buf.empty() && !img1_buf.empty())
-            {
+            while (!img0_buf.empty() && !img1_buf.empty()) {
                 double time0 = img0_buf.front()->header.stamp.toSec();
                 double time1 = img1_buf.front()->header.stamp.toSec();
                 if(time0 < time1)
-                {
                     img0_buf.pop();
-                    printf("Throw img0 (%lf -- %lf).\n", time0, time1);
-                }
                 else if(time0 > time1)
-                {
                     img1_buf.pop();
-                    printf("Throw img1 (%lf -- %lf).\n", time0, time1);
-                }
-                else
-                {
+                else {
                     time = img0_buf.front()->header.stamp.toSec();
                     header = img0_buf.front()->header;
                     image0 = getImageFromMsg(img0_buf.front());
                     img0_buf.pop();
                     image1 = getImageFromMsg(img1_buf.front());
                     img1_buf.pop();
-                    //printf("find img0 and img1\n");
+                    break;
                 }
             }
             m_buf.unlock();
-            if(!image0.empty()) {
+
+            if(time > 0.0) {
                 m_estimator.lock();
                 estimator->inputImage(time, image0, image1);
                 m_estimator.unlock();
+            }
+            else {
+                ROS_WARN("Fail to sync left and right camera.");
+                SYNC_PROCESS_LONG_DELAY
+
+                if (img0_buf.empty() || img1_buf.empty()) {
+                    ROS_WARN("Fail to sync left and right camera.");
+                }
             }
         }
         else
@@ -134,10 +152,10 @@ void sync_process()
                 estimator->inputImage(time, image);
                 m_estimator.unlock();
             }
+            else {
+                SYNC_PROCESS_SHORT_DELAY
+            }
         }
-
-        std::chrono::milliseconds dura(2);
-        std::this_thread::sleep_for(dura);
     }
 }
 

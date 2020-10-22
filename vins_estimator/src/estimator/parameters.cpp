@@ -53,6 +53,8 @@ void readParameters(std::string config_file)
         return;
     }
 
+    ROS_ERROR("BIG ERROR: calib info not fetched from service.");
+
     FILE *fh = fopen(config_file.c_str(), "r");
     if (fh == NULL) {
         ROS_WARN("config_file dosen't exist; wrong config_file path");

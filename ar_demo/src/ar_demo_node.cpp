@@ -240,6 +240,8 @@ void project_object(Vector3d camera_p, Quaterniond camera_q) {
 }
 
 void draw_object(cv::Mat &AR_image) {
+
+    // Draw axis.
     for (int i = 0; i < axis_num; i++) {
         if (output_Axis[i].empty())
             continue;
@@ -269,7 +271,7 @@ void draw_object(cv::Mat &AR_image) {
                 index[j + 1] = tmp_index;
             }
         }
-
+#if 0
     for (int k = 0; k < cube_num; k++) {
         int i = index[k];
         // cout << "draw " << i << "depth " << Cube_center_depth[i] << endl;
@@ -337,6 +339,32 @@ void draw_object(cv::Mat &AR_image) {
         cv::fillPoly(AR_image, ppt, npts, 1, cv::Scalar(0, 0, 200));
         delete p;
     }
+
+#else
+    for (int k = 0; k < cube_num; k++) {
+        int i = index[k];
+        if (output_Cube[i].empty())
+            continue;
+
+        int draw_x[] = { 0, 1, 5, 4, 4, 6, 2, 2, 3, 3, 6, 5};
+        int draw_y[] = { 1, 5, 4, 0, 6, 2, 0, 3, 1, 7, 7, 7};
+
+        cv::Point p[8];
+        p[0] = cv::Point(output_Cube[i][0].x(), output_Cube[i][0].y());
+        p[1] = cv::Point(output_Cube[i][1].x(), output_Cube[i][1].y());
+        p[2] = cv::Point(output_Cube[i][2].x(), output_Cube[i][2].y());
+        p[3] = cv::Point(output_Cube[i][3].x(), output_Cube[i][3].y());
+        p[4] = cv::Point(output_Cube[i][4].x(), output_Cube[i][4].y());
+        p[5] = cv::Point(output_Cube[i][5].x(), output_Cube[i][5].y());
+        p[6] = cv::Point(output_Cube[i][6].x(), output_Cube[i][6].y());
+        p[7] = cv::Point(output_Cube[i][7].x(), output_Cube[i][7].y());
+
+        for (size_t order = 0; order < sizeof(draw_x)/sizeof(draw_x[0]); ++ order) {
+            cv::line(AR_image, p[draw_x[order]], p[draw_y[order]], cv::Scalar(0, 255, 0), 2, 8, 0);
+        }
+    }
+
+#endif
 }
 
 void callback(const ImageConstPtr &img_msg,
@@ -503,9 +531,13 @@ int main(int argc, char **argv) {
     Cube_center[2] = Vector3d(0, -2, -1.2 + box_length / 2.0);
 
     ros::Subscriber pose_img = n.subscribe("camera_pose", 100, pose_callback);
-    ros::Subscriber sub_point = n.subscribe("pointcloud", 2000, point_callback);
-    image_transport::ImageTransport it(n);
-    pub_ARimage = it.advertise("AR_image", 1000);
+
+    // swei: Not sure whether this will cause any trouble, turn it off for now.
+    // ros::Subscriber sub_point = n.subscribe("pointcloud", 2000, point_callback);
+    
+    // swei: Will not need to publish this one, since no rviz will be used.
+    // image_transport::ImageTransport it(n);
+    // pub_ARimage = it.advertise("AR_image", 1000);
 
     line_color_r.r = 1.0;
     line_color_r.a = 1.0;
@@ -523,6 +555,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 #endif
+    ROS_WARN("AR demo will fetch camera parameters from %s", calib_file.c_str());
     m_camera =
         CameraFactory::instance()->generateCameraFromYamlFile(calib_file);
 

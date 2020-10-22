@@ -235,6 +235,8 @@ bool readMYNTConfig(std::string config_file) {
         img_extri != "null") {
       CAM_NAMES.push_back(device_info_path_left);
     } else {
+      // swei: get wrong values, should not continue.
+      ROS_ERROR("Cannot fetch caliberation paraemters from service.");  
       fsSettings["cam0_calib"] >> cam0Calib;
       std::string cam0Path = configPath + "/" + cam0Calib;
       CAM_NAMES.push_back(cam0Path);
@@ -248,6 +250,8 @@ bool readMYNTConfig(std::string config_file) {
             img_extri != "null") {
           CAM_NAMES.push_back(device_info_path_right);
         } else {
+          // swei: get wrong values, should not continue.
+          ROS_ERROR("Cannot fetch caliberation paraemters from service.");  
           fsSettings["cam1_calib"] >> cam1Calib;
           std::string cam1Path = configPath + "/" + cam1Calib; 
           CAM_NAMES.push_back(cam1Path);
