@@ -1,6 +1,16 @@
 # MYNT-EYE-VINS-FUSION
 
+## How
 
+VSCode + Docker + Remote-Containers
+
+```Bash
+# Setup camera in the container.
+chmod +x /workspace/
+./tools/
+```
+
+---
 ## Prerequisites
 ### 1. **Ubuntu** and **ROS**
 Ubuntu 64-bit 16.04 or 18.04.
