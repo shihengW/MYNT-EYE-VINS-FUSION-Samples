@@ -1,3 +1,8 @@
+#!/usr/bin/env bash
+
+# The first line must stay there! It says this script will be run
+# in bash.
+
 # ----------------------------------------------------------------------- #
 # Setup the error handler.                                                #
 # ----------------------------------------------------------------------- #
@@ -19,7 +24,7 @@ echo -e "\e[1;32m
 ##################################################\e[0m"
 
 # Check the camera topic
-source "/opt/ros/kinetic/setup.bash"
+source "/opt/ros/$ROS_DISTRO/setup.bash"
 if [ ! $(rostopic info /mynteye/right/camera_info) ]
 then
     echo -e "\e[1;31m# MUST launch camera first.\e[0m"
