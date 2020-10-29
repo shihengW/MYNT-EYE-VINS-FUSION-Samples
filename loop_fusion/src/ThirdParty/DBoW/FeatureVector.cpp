@@ -11,6 +11,7 @@
 #include <map>
 #include <vector>
 #include <iostream>
+#include <opencv2/imgproc/imgproc_c.h>
 
 namespace DBoW2 {
 

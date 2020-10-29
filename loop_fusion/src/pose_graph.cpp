@@ -9,6 +9,7 @@
  * Author: Qin Tong (qintonguav@gmail.com)
  *******************************************************/
 
+#include <opencv2/imgproc/imgproc_c.h>
 #include "pose_graph.h"
 
 PoseGraph::PoseGraph()

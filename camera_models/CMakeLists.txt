@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 2.8.3)
-set(OpenCV_DIR /usr/local/share/OpenCV)
 project(camera_models)
 
 set(CMAKE_BUILD_TYPE "Release")
