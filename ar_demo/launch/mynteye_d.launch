@@ -13,7 +13,7 @@
           output="screen">
         
         <remap from="~image_raw"
-               to="/mynteye/left/image_color"/>
+               to="/mynteye/left/image_mono"/>
         <remap from="~camera_pose"
                to="/vins_estimator/camera_pose"/>
         <!-- <remap from="~camera_pose"

@@ -15,9 +15,3 @@ result_gps.txt
 camera_camera_calib.yaml
 camera_chessboard_data.dat
 *.swp
-config/mynteye-avarta/device_params_left.yaml
-config/mynteye-avarta/device_params_right.yaml
-config/mynteye-d/device_params_left.yaml
-config/mynteye-d/device_params_right.yaml
-config/mynteye-s/device_params_left.yaml
-config/mynteye-s/device_params_right.yaml

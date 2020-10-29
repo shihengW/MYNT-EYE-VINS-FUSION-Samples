@@ -124,7 +124,7 @@ void draw_distorted_cube(cv::Mat &image, const Vector3d *corners) {
     cv::Mat depth_map;
     m_depth.lock();
     if (depth_image)
-        depth_map = cv_bridge::toCvCopy(depth_image)->image.clone();
+        depth_map = cv_bridge::toCvShare(depth_image)->image;
 
     m_depth.unlock();
 
@@ -196,24 +196,13 @@ void project_ar_object(const ImageConstPtr &img_msg,
 
     cv::Mat AR_image;
 
-    if (img_msg->encoding == "8UC1") {
-        cv_bridge::CvImageConstPtr ptr;
-        sensor_msgs::Image img;
-        img.header = img_msg->header;
-        img.height = img_msg->height;
-        img.width = img_msg->width;
-        img.is_bigendian = img_msg->is_bigendian;
-        img.step = img_msg->step;
-        img.data = img_msg->data;
-        img.encoding = "mono8";
-        ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::MONO8);        
-        AR_image = ptr->image.clone();
-        cv::cvtColor(AR_image, AR_image, cv::COLOR_GRAY2RGB);
-    } else {
-        cv_bridge::CvImageConstPtr ptr;
-        ptr = cv_bridge::toCvCopy(img_msg, "bgr8");
-        AR_image = ptr->image.clone();
-    }
+    if (img_msg->encoding == sensor_msgs::image_encodings::MONO8) {
+        cv::cvtColor(
+            cv_bridge::toCvShare(img_msg)->image,
+            AR_image,
+            cv::COLOR_GRAY2RGB);
+    } else
+        AR_image = cv_bridge::toCvShare(img_msg)->image;
 
     const double cube_width = 0.8;
     static int continuous_unvisible = 0;
@@ -261,7 +250,7 @@ void project_ar_object(const ImageConstPtr &img_msg,
     }
 
     cv::imshow("AR_Image", AR_image);
-    cv::waitKey(2);
+    cv::waitKey(1);
 }
 
 void img_callback(const ImageConstPtr &img_msg) {
@@ -311,7 +300,7 @@ int main(int argc, char **argv) {
 
     Cube_center = Vector3d(0, 0, -1.5);
 
-    ros::Subscriber pose_img = n.subscribe("camera_pose", 100, pose_callback);
+    ros::Subscriber pose_img = n.subscribe("camera_pose", 10, pose_callback);
 
     string calib_file;
     n.getParam("calib_file", calib_file);

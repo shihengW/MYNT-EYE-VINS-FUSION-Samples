@@ -57,6 +57,20 @@ void Estimator::setParameter()
 
 void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
 {
+    static int max_counter = 50;
+    static int counter = 0;
+    static double last_time = 0.;
+
+    if ((++counter) == max_counter) {
+        double dura = t - last_time;
+        double frequency = dura > 0 ? max_counter / dura : 0.;
+
+        ROS_INFO("Processing image at freq %.4f.", frequency);
+
+        last_time = t;
+        counter = 0;
+    }
+
     inputImageCnt++;
     map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> featureFrame;
     TicToc featureTrackerTime;
@@ -67,9 +81,10 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
     //printf("featureTracker time: %f\n", featureTrackerTime.toc());
     
     if(MULTIPLE_THREAD)  
-    {     
-        // swei: Optimize at frame rate for demo.
-        // if(inputImageCnt % 2 == 0)
+    {   
+        // swei: with higher frame rate, we should
+        // lower the estimation rate.  
+        if(inputImageCnt % 2 == 0)
         {
             mBuf.lock();
             featureBuf.push(make_pair(t, featureFrame));
@@ -97,8 +112,9 @@ void Estimator::inputIMU(double t, const Vector3d &linearAcceleration, const Vec
     mBuf.unlock();
 
     fastPredictIMU(t, linearAcceleration, angularVelocity);
-    if (solver_flag == NON_LINEAR)
-        pubLatestOdometry(*this, latest_P, latest_Q, latest_V, t);
+    // swei: Disable.
+    // if (solver_flag == NON_LINEAR)
+    //     pubLatestOdometry(*this, latest_P, latest_Q, latest_V, t);
 }
 
 void Estimator::inputFeature(double t, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &featureFrame)
@@ -210,8 +226,11 @@ void Estimator::processMeasurements()
 
             // swei: disable for less resources.
             // printStatistics(*this, 0);
-            if (solver_flag != INITIAL)
-                ROS_INFO("Position %.4f %.4f %.4f", Ps[WINDOW_SIZE].x(), Ps[WINDOW_SIZE].y(), Ps[WINDOW_SIZE].z());
+
+            // swei: Print at lower frequency.
+            static unsigned int __counter = 0;
+            if (solver_flag != INITIAL && ((++__counter) % 3) == 0)
+                ROS_INFO("Position %.2f %.2f %.2f", Ps[WINDOW_SIZE].x(), Ps[WINDOW_SIZE].y(), Ps[WINDOW_SIZE].z());
 
             std_msgs::Header header;
             header.frame_id = "world";
@@ -226,7 +245,8 @@ void Estimator::processMeasurements()
             //       so we must disable this one.
             pubCameraPose(*this, header);
 
-            pubPointCloud(*this, header);
+            // swei: Disable.
+            // pubPointCloud(*this, header);
 
             // swei: Disable due to tiny resource.
             // pubKeyframe(*this);
